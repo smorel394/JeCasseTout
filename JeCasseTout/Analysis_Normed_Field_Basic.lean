@@ -738,7 +738,7 @@ instance (priority := 100) NontriviallyNormedField.toNontriviallyNormedDivisionR
 
 end Nontrivially 
 
-namespace NormedDivisionRing
+namespace NormedField
 
 section Nontrivially 
 variable (α) [NontriviallyNormedDivisionRing α]
@@ -773,7 +773,7 @@ theorem nhdsWithin_isUnit_neBot : NeBot (𝓝[{ x : α | IsUnit x }] 0) := by
   simpa only [isUnit_iff_ne_zero] using punctured_nhds_neBot (0 : α)
 
 end Nontrivially
-end NormedDivisionRing
+end NormedField
 
 namespace NormedField
 section Densely
