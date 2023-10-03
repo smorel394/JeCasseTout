@@ -21,58 +21,13 @@ NontriviallyNormedDivisionRing 𝕜 We will also need to introduce a Nontriviall
 variable {𝕜 E U : Type*} [NontriviallyNormedField 𝕜] [NormedAddCommGroup E] [NormedSpace 𝕜 E] 
 [NormedAddCommGroup U] [NormedSpace 𝕜 U] [CompleteSpace 𝕜] {r : ℕ}
 
-/- The goodset of a continuous linear map φ : E → (Fin r → 𝕜) is open.-/
 
-lemma GoodsetIsOpen_aux1 (φ : E →L[𝕜] (Fin r → 𝕜)) : IsOpen {v : Fin r → E | LinearIndependent 𝕜 (φ ∘ v)} := by
-  have heq : {v : Fin r → E | LinearIndependent 𝕜 (φ ∘ v)} = (fun (v : Fin r → E) => φ ∘ v)⁻¹'
-    {u : Fin r → (Fin r → 𝕜) | LinearIndependent 𝕜 u} := by
-    simp only [Set.preimage_setOf_eq]
-  rw [heq]
-  apply IsOpen.preimage
-  . apply Pi.continuous_postcomp φ.continuous
-  . exact isOpen_setOf_linearIndependent 
-
-lemma GoodsetIsOpen_aux2 (φ : E →L[𝕜] (Fin r → 𝕜)) : IsOpen {v : {v : Fin r → E // LinearIndependent 𝕜 v} 
-| LinearIndependent 𝕜 (φ ∘ v.1)} := by 
-  have heq : {v : {v : Fin r → E // LinearIndependent 𝕜 v} | LinearIndependent 𝕜 (φ ∘ v.1)} = 
-    ({v : Fin r → E | LinearIndependent 𝕜 v}.restrict (fun (v : Fin r → E) => φ ∘ v))⁻¹'
-    {u : Fin r → (Fin r → 𝕜) | LinearIndependent 𝕜 u} := by 
-    simp only [Set.coe_setOf, Set.preimage_setOf_eq, Set.restrict_apply, Set.mem_setOf_eq]
-  rw [heq]
-  apply IsOpen.preimage
-  . rw [Set.restrict_eq]
-    apply Continuous.comp
-    . apply Pi.continuous_postcomp φ.continuous 
-    . exact continuous_subtype_val
-  . exact isOpen_setOf_linearIndependent  
+/- We prove that the charts are continuous, but first proving that their lifts are smooth (hence also continuous).-/
 
 
-lemma GoodsetIsOpen (φ : E →L[𝕜] (Fin r → 𝕜)) : IsOpen (Goodset (φ : E →ₗ[𝕜] Fin r → 𝕜)) := by 
-  rw [isOpen_coinduced]
-  have heq : (Grassmannian.mk' 𝕜)⁻¹' (Goodset φ.toLinearMap) = 
-    {v : {v : Fin r → E // LinearIndependent 𝕜 v} | LinearIndependent 𝕜 (φ ∘ v.1)} := by
-    ext v 
-    simp only [Set.mem_preimage, mk'_eq_mk, Set.mem_setOf_eq] 
-    exact GoodsetPreimage φ.toLinearMap v.2
-  rw [heq]
-  exact GoodsetIsOpen_aux2 φ
+section Chart
 
-
-noncomputable def ContChart (φ : E ≃L[𝕜] (Fin r → 𝕜) × U) : Grassmannian 𝕜 E r → ((Fin r → 𝕜) →L[𝕜] U) := 
-fun W => ContinuousLinearMap.mk (Chart φ.toLinearEquiv W) (LinearMap.continuous_of_finiteDimensional _)
-
-/- To prove that the chart is continuous, we lift it to (Fin r → E) and we prove that the lift is smooth.-/
-
-def ContChartLift (φ : E ≃L[𝕜] (Fin r → 𝕜) × U) : (Fin r → E) → ((Fin r → 𝕜) →L[𝕜] U) := 
-fun v => ContinuousLinearMap.mk (ChartLift φ.toLinearEquiv v) (LinearMap.continuous_of_finiteDimensional _)
-  
-
-lemma ContChartLift_isLift (φ : E ≃L[𝕜] (Fin r → 𝕜) × U) {v : Fin r → E} (hv : LinearIndependent 𝕜 v) :
-ContChart φ (Grassmannian.mk 𝕜 v hv) = ContChartLift φ v := by 
-  unfold ContChart ContChartLift
-  simp only [ContinuousLinearMap.mk.injEq]
-  apply ChartLift_isLift
-
+/- Helper functions for ChartLift.-/
 variable (𝕜 E r)
 
 
@@ -109,6 +64,27 @@ LinearMap.mkContinuous (ChartLiftHelper1 𝕜 E r) r (ChartLiftHelper1_norm_le �
 def ChartLiftHelper2 (φ : E →L[𝕜] (Fin r → 𝕜)) : (Fin r → E) →L[𝕜] (Fin r → 𝕜) →L[𝕜] (Fin r → 𝕜) :=
 ContinuousLinearMap.comp (ContinuousLinearMap.compL 𝕜 (Fin r → 𝕜) E (Fin r → 𝕜) φ) (ChartLiftHelper1L 𝕜 E r)
 
+def ChartLiftHelper2_equiv (φ : E →L[𝕜] (Fin r → 𝕜)) {v : Fin r → E} (hv : LinearIndependent 𝕜 (φ ∘ v)) :
+(Fin r → 𝕜) ≃L[𝕜] (Fin r → 𝕜) := by
+  apply LinearEquiv.toContinuousLinearEquiv
+  apply LinearEquiv.ofBijective (φ.toLinearMap.comp (Basis.constr (Pi.basisFun 𝕜 (Fin r)) ℤ  v))
+  erw [GoodsetPreimage_iff_equiv'] at hv
+  exact hv 
+
+lemma ChartLiftHelp2_equiv_comp (φ : E →L[𝕜] (Fin r → 𝕜)) {v : Fin r → E} (hv : LinearIndependent 𝕜 (φ ∘ v)) :
+ChartLiftHelper2 𝕜 E r φ v = (ChartLiftHelper2_equiv 𝕜 E r φ hv).toContinuousLinearMap := by
+  ext u
+  unfold ChartLiftHelper2_equiv ChartLiftHelper2
+  simp only [ContinuousLinearMap.coe_comp', Function.comp_apply, ContinuousLinearMap.compL_apply,
+    ContinuousLinearEquiv.coe_coe, LinearEquiv.coe_toContinuousLinearEquiv', LinearEquiv.ofBijective_apply,
+    LinearMap.coe_comp, ContinuousLinearMap.coe_coe, Basis.constr_apply_fintype, Pi.basisFun_equivFun,
+    LinearEquiv.refl_apply]
+  unfold ChartLiftHelper1L ChartLiftHelper1
+  simp only [LinearMap.mkContinuous_apply, LinearMap.coe_mk, AddHom.coe_mk]
+  rw [ContinuousLinearMap.coe_comp', Function.comp_apply, Basis.constrL_apply]
+  simp only [Pi.basisFun_equivFun, LinearEquiv.refl_apply]
+  
+
 variable {r}
 
 def ChartLiftHelper3 (F G : Type*) [NormedAddCommGroup F] [NormedSpace 𝕜 F] [NormedAddCommGroup G] [NormedSpace 𝕜 G] : 
@@ -121,49 +97,210 @@ def IsBoundedBilinearMap_chartLiftHelper3 (F G : Type*) [NormedAddCommGroup F] [
 variable {𝕜 E}
 
 
-lemma ContChartLift_eq (φ : E ≃L[𝕜] (Fin r → 𝕜) × U) (v : Fin r → E):
-ContChartLift φ v = ContinuousLinearMap.compL 𝕜 (Fin r → 𝕜) E U
+lemma ChartLift_eq (φ : E ≃L[𝕜] (Fin r → 𝕜) × U) :
+ChartLift φ  = (fun v => ContinuousLinearMap.compL 𝕜 (Fin r → 𝕜) E U
     ((ContinuousLinearMap.snd 𝕜 (Fin r → 𝕜) U).comp φ.toContinuousLinearMap) 
     (ChartLiftHelper3 𝕜 (Fin r → 𝕜) (Fin r → 𝕜) E ⟨(ChartLiftHelper1L 𝕜 E r v), 
-    (Ring.inverse (ChartLiftHelper2 𝕜 E r ((ContinuousLinearMap.fst 𝕜 (Fin r → 𝕜) U).comp φ.toContinuousLinearMap) v))⟩) := sorry 
- 
+    (Ring.inverse (ChartLiftHelper2 𝕜 E r ((ContinuousLinearMap.fst 𝕜 (Fin r → 𝕜) U).comp φ.toContinuousLinearMap) v))⟩)) := by sorry
+/-  ext v 
+  unfold ChartLift ChartLiftHelper3 ChartLiftHelper2 ChartLiftHelper1L ChartLiftHelper1 
+  simp only [ContinuousLinearMap.coe_comp', ContinuousLinearMap.coe_snd', ContinuousLinearEquiv.coe_coe,
+    Function.comp_apply, Basis.constrL_apply, Pi.basisFun_equivFun, LinearEquiv.refl_apply,
+    LinearMap.mkContinuous_apply, LinearMap.coe_mk, AddHom.coe_mk, ContinuousLinearMap.compL_apply]
+  rw [ContinuousLinearMap.coe_comp', ContinuousLinearMap.coe_comp', ContinuousLinearMap.coe_comp']
+  simp only [ContinuousLinearMap.coe_snd', ContinuousLinearEquiv.coe_coe, Function.comp_apply, Basis.constrL_apply,
+    Pi.basisFun_equivFun, LinearEquiv.refl_apply]-/
 
-lemma ChartLiftSmoothOn (φ : E ≃L[𝕜] (Fin r → 𝕜) × U) : ContDiffOn 𝕜 ⊤ (ContChartLift φ) 
-{v | LinearIndependent 𝕜 (φ ∘ v)} := by
-  refine ContDiffOn.congr ?_ (fun v _ => ContChartLift_eq φ v)
-  apply ContDiffOn.continuousLinearMap_comp    
-  have heq : ∀ v, (ChartLiftHelper3 𝕜 (Fin r → 𝕜) (Fin r → 𝕜) E ⟨(ChartLiftHelper1L 𝕜 E r v), 
-    (Ring.inverse (ChartLiftHelper2 𝕜 E r ((ContinuousLinearMap.fst 𝕜 (Fin r → 𝕜) U).comp φ.toContinuousLinearMap) v))⟩) = 
+ 
+ /-ChartLift is smooth at every point over the Goodset of φ.-/
+
+lemma ChartLiftSmoothAt (φ : E ≃L[𝕜] (Fin r → 𝕜) × U) {v : Fin r → E} (hv : LinearIndependent 𝕜 
+  (((ContinuousLinearMap.fst 𝕜 (Fin r → 𝕜) U).comp φ.toContinuousLinearMap) ∘ v)) : 
+ContDiffAt 𝕜 ⊤ (ChartLift φ) v := by sorry
+/-  rw [ChartLift_eq]  
+  apply ContDiffAt.continuousLinearMap_comp    
+  have heq : (fun v => (ChartLiftHelper3 𝕜 (Fin r → 𝕜) (Fin r → 𝕜) E ⟨(ChartLiftHelper1L 𝕜 E r v), 
+    (Ring.inverse (ChartLiftHelper2 𝕜 E r ((ContinuousLinearMap.fst 𝕜 (Fin r → 𝕜) U).comp φ.toContinuousLinearMap) v))⟩)) = 
     ((ChartLiftHelper3 𝕜 (Fin r → 𝕜) (Fin r → 𝕜) E) ∘ (fun v => ⟨(ChartLiftHelper1L 𝕜 E r v), 
     (Ring.inverse (ChartLiftHelper2 𝕜 E r ((ContinuousLinearMap.fst 𝕜 (Fin r → 𝕜) U).comp φ.toContinuousLinearMap) v))⟩)
-    ) v := sorry 
-  refine ContDiffOn.congr ?_ (fun v _ => heq v)
-  apply ContDiff.comp_contDiffOn (IsBoundedBilinearMap.contDiff (IsBoundedBilinearMap_chartLiftHelper3 _ _ _ _))
-  apply ContDiffOn.prod
-  . apply ContDiff.contDiffOn
-    apply ContinuousLinearMap.contDiff 
-  . 
+    ) := by
+    ext v 
+    simp only [Function.comp_apply]
+  rw [heq]
+  apply ContDiff.comp_contDiffAt v (IsBoundedBilinearMap.contDiff (IsBoundedBilinearMap_chartLiftHelper3 _ _ _ _))
+  apply ContDiffAt.prod
+  . apply ContDiff.contDiffAt 
+    apply ContinuousLinearMap.contDiff     
+  . have heq : (fun v => Ring.inverse (ChartLiftHelper2 𝕜 E r 
+      ((ContinuousLinearMap.fst 𝕜 (Fin r → 𝕜) U).comp φ.toContinuousLinearMap) v)) = 
+      Ring.inverse ∘ (fun v => (ChartLiftHelper2 𝕜 E r ((ContinuousLinearMap.fst 𝕜 (Fin r → 𝕜) U).comp 
+      φ.toContinuousLinearMap) v)) := by
+      ext v
+      simp only [Function.comp_apply]
+    rw [heq]
+    apply ContDiffAt.comp
+    . rw [ChartLiftHelp2_equiv_comp 𝕜 E r ((ContinuousLinearMap.fst 𝕜 (Fin r → 𝕜) U).comp 
+        φ.toContinuousLinearMap) hv]
+      exact contDiffAt_ring_inverse 𝕜 (ContinuousLinearEquiv.toUnit (ChartLiftHelper2_equiv 𝕜 E r 
+        ((ContinuousLinearMap.fst 𝕜 (Fin r → 𝕜) U).comp φ.toContinuousLinearMap) hv))  
+    . apply ContDiff.contDiffAt 
+      apply ContinuousLinearMap.contDiff -/
+
+lemma ChartLiftSmoothOn (φ : E ≃L[𝕜] (Fin r → 𝕜) × U) :
+ContDiffOn 𝕜 ⊤ (ChartLift φ) {v : Fin r → E | LinearIndependent 𝕜 
+  (((ContinuousLinearMap.fst 𝕜 (Fin r → 𝕜) U).comp φ.toContinuousLinearMap) ∘ v)} := by 
+  rw [contDiffOn_open_iff_contDiffAt]
+  . exact fun v => ChartLiftSmoothAt φ v.2
+  . apply GoodsetIsOpen_aux1 
+
+/- We deduce the continuity of ChartLift.-/
+
+lemma ChartLiftContinuousAt (φ : E ≃L[𝕜] (Fin r → 𝕜) × U) {v : Fin r → E} (hv : LinearIndependent 𝕜 
+  (((ContinuousLinearMap.fst 𝕜 (Fin r → 𝕜) U).comp φ.toContinuousLinearMap) ∘ v)) : 
+ContinuousAt (ChartLift φ) v := ContDiffAt.continuousAt (ChartLiftSmoothAt φ hv)
 
 
-#exit   
-  refine ContDiffOn.congr ?_ (fun v _ => ContChartLift_eq φ v)
-  apply ContDiffOn.continuousLinearMap_comp    
-  sorry 
+lemma ChartLiftContinuousOn (φ : E ≃L[𝕜] (Fin r → 𝕜) × U) :
+ContinuousOn (ChartLift φ) {v : Fin r → E | LinearIndependent 𝕜 
+  (((ContinuousLinearMap.fst 𝕜 (Fin r → 𝕜) U).comp φ.toContinuousLinearMap) ∘ v)} := 
+ContinuousAt.continuousOn (fun _ hv => ChartLiftContinuousAt φ hv)
+
+/- Now we deduce the continuity of the chart itself.-/
+
+lemma ChartContinuous (φ : E ≃L[𝕜] (Fin r → 𝕜) × U) :
+ContinuousOn (Chart φ) (Goodset ((ContinuousLinearMap.fst 𝕜 (Fin r → 𝕜) U).comp φ.toContinuousLinearMap)) := by 
+  set φ₁ := (ContinuousLinearMap.fst 𝕜 (Fin r → 𝕜) U).comp φ.toContinuousLinearMap
+  apply (continuousOn_open_iff (GoodsetIsOpen φ₁)).mpr
+  intro U hU 
+  apply isOpen_coinduced.mpr 
+  have heq : (Grassmannian.mk' 𝕜)⁻¹' (Goodset φ₁ ∩ (Chart φ)⁻¹' U) = (fun v => v.1)⁻¹'
+    ({v : Fin r → E | LinearIndependent 𝕜 (φ₁ ∘ v)} ∩ (ChartLift φ)⁻¹' U) := by
+    ext u
+    simp only [ContinuousLinearMap.coe_comp, ContinuousLinearMap.coe_fst, Set.preimage_inter, Set.mem_inter_iff,
+      Set.mem_preimage, mk'_eq_mk, ContinuousLinearMap.coe_comp', ContinuousLinearMap.coe_fst',
+      ContinuousLinearEquiv.coe_coe, Set.preimage_setOf_eq, Set.mem_setOf_eq] 
+    rw [GoodsetPreimage, ChartLift_isLift]
+    rfl 
+  rw [heq]
+  apply IsOpen.preimage
+  . apply continuous_induced_dom
+  . exact (continuousOn_open_iff (GoodsetIsOpen_aux1 φ₁)).mp (ChartLiftContinuousOn φ) U hU 
+
+end Chart
+ 
+section InverseChart
+
+/- Now we do the same for the inverse chart. First we prove that its lift is smooth.-/
+
+variable (𝕜 E)
+
+def InverseChartLiftHelper1 (F : Type*) [NormedAddCommGroup F] [NormedSpace 𝕜 F] : 
+(E →L[𝕜] F) × E → F := fun x => ContinuousLinearMap.apply' F (RingHom.id 𝕜) x.2 x.1 
+
+def IsBoundedBilinearMap_inverseChartLiftHelper1 (F : Type*) [NormedAddCommGroup F] [NormedSpace 𝕜 F] : 
+IsBoundedBilinearMap 𝕜 (InverseChartLiftHelper1 𝕜 E F) := by 
+  apply ContinuousLinearMap.isBoundedBilinearMap 
 
 
+def InverseChartLiftHelper2 (F G : Type*) [NormedAddCommGroup F] [NormedSpace 𝕜 F] [NormedAddCommGroup G] 
+[NormedSpace 𝕜 G] : 
+(E →L[𝕜] F) × (E →L[𝕜] G) → (E →L[𝕜] F × G) := fun x => ContinuousLinearMap.prodₗᵢ 𝕜 x 
+
+
+
+variable {𝕜 E}
+
+lemma InverseChartLiftSmooth (φ : E ≃L[𝕜] (Fin r → 𝕜) × U) :
+ContDiff 𝕜 ⊤ (InverseChartLift φ) := by sorry
+/-  rw [contDiff_pi]
+  intro i
+  have heq : (fun f => InverseChartLift φ f i) = (fun f => InverseChartLiftHelper1 𝕜 _ _
+    ⟨(ContinuousLinearMap.comp φ.symm.toContinuousLinearMap (ContinuousLinearMap.prod 
+    (ContinuousLinearMap.id _ _) f)), ((Pi.basisFun 𝕜 (Fin r)) i)⟩) := by
+    ext f
+    unfold InverseChartLift InverseChartLiftHelper1
+    simp only [Pi.basisFun_apply, Function.comp_apply, ContinuousLinearMap.prod_apply, ContinuousLinearMap.coe_id',
+      id_eq, ContinuousLinearMap.apply_apply']
+    rw [ContinuousLinearMap.coe_comp', Function.comp_apply]
+    simp only [ContinuousLinearEquiv.coe_coe, EmbeddingLike.apply_eq_iff_eq]
+    rw [ContinuousLinearMap.prod_apply, ContinuousLinearMap.id_apply]
+  rw [heq]
+  apply ContDiff.comp (IsBoundedBilinearMap.contDiff (IsBoundedBilinearMap_inverseChartLiftHelper1 _ _ _))
+  apply ContDiff.prod
+  . have heq : (fun f => (ContinuousLinearMap.comp φ.symm.toContinuousLinearMap (ContinuousLinearMap.prod 
+      (ContinuousLinearMap.id _ _) f))) = (fun f => ContinuousLinearMap.compL 𝕜 _ _ _
+      φ.symm.toContinuousLinearMap (ContinuousLinearMap.prod (ContinuousLinearMap.id _ _) f)) := by
+      ext f 
+      simp only [ContinuousLinearMap.coe_comp', ContinuousLinearEquiv.coe_coe, Function.comp_apply,
+        ContinuousLinearMap.prod_apply, ContinuousLinearMap.coe_id', id_eq, ContinuousLinearMap.compL_apply]
+      rw [ContinuousLinearMap.coe_comp', Function.comp_apply, ContinuousLinearMap.prod_apply, ContinuousLinearMap.id_apply]
+      rfl
+    rw [heq]
+    apply ContDiff.continuousLinearMap_comp
+    have heq : (fun f => ContinuousLinearMap.prod (ContinuousLinearMap.id 𝕜 (Fin r → 𝕜)) f) =
+      (fun f => (ContinuousLinearMap.prodₗᵢ 𝕜 (𝕜 := 𝕜) (Fₗ := Fin r → 𝕜) (Gₗ := U)) 
+      ⟨(ContinuousLinearMap.id 𝕜 (Fin r → 𝕜)), f⟩) := sorry 
+    rw [heq]
+    apply ContDiff.continuousLinearMap_comp (LinearIsometryEquiv.toContinuousLinearEquiv (ContinuousLinearMap.prodₗᵢ 𝕜 
+      (E := Fin r → 𝕜) (Fₗ := Fin r → 𝕜) (Gₗ := U) (𝕜 := 𝕜))).toContinuousLinearMap  
+    apply ContDiff.prod
+    . apply contDiff_const 
+    . apply contDiff_id 
+  . apply contDiff_const -/
+
+/- We deduce that the lift is continuous. -/
+
+lemma InverseChartLiftContinuous (φ : E ≃L[𝕜] (Fin r → 𝕜) × U) :
+Continuous (InverseChartLift φ) :=
+ContDiff.continuous (InverseChartLiftSmooth φ)
+
+/- To relate this to the continuity of the inverse chart, it is convenient to define a variant of the lift 
+with codomain {v : Fin r → E | LinearIndependent 𝕜 v}.-/
+
+def InverseChartLift' (φ : E ≃L[𝕜] (Fin r → 𝕜) × U) :=
+Set.codRestrict (InverseChartLift φ) {v : Fin r → E | LinearIndependent 𝕜 v}
+(fun f => LinearIndependent.of_comp (ι := Fin r) (R := 𝕜) (v := InverseChartLift φ f) (M := E) (M' := Fin r → 𝕜) 
+((ContinuousLinearMap.fst 𝕜 (Fin r → 𝕜) U).comp φ.toContinuousLinearMap) 
+(InverseChartLift_codomain φ f))
+
+
+lemma InverseChartLift'_isLift (φ : E ≃L[𝕜] (Fin r → 𝕜) × U) :
+InverseChart φ = (Grassmannian.mk' 𝕜) ∘ (InverseChartLift' φ) := by 
+  ext f
+  rw [InverseChartLift_isLift]
+  unfold InverseChartLift' InverseChartLift
+  simp only [Function.comp_apply, mk'_eq_mk, Set.val_codRestrict_apply]
+  
+lemma InverseChartLift'Continuous (φ : E ≃L[𝕜] (Fin r → 𝕜) × U) :
+Continuous (InverseChartLift' φ) :=
+Continuous.codRestrict (InverseChartLiftContinuous φ) _
+
+
+/- We deduce that the inverse chart is continuous. -/
+
+lemma InverseChartContinuous (φ : E ≃L[𝕜] (Fin r → 𝕜) × U) :
+Continuous (InverseChart φ) := by 
+  rw [InverseChartLift'_isLift]
+  exact Continuous.comp continuous_coinduced_rng (InverseChartLift'Continuous φ)
+
+
+
+end InverseChart 
+
+
+/- Definition of the chart as a local homeomorph. -/
+
+
+def Chart_LocalHomeomorph (φ : E ≃L[𝕜] (Fin r → 𝕜) × U) : 
+LocalHomeomorph (Grassmannian 𝕜 E r) ((Fin r → 𝕜) →L[𝕜] U) := {Chart_LocalEquiv φ with  
+  open_source := GoodsetIsOpen _ 
+  open_target := isOpen_univ
+  continuous_toFun := ChartContinuous φ
+  continuous_invFun := Continuous.continuousOn (InverseChartContinuous φ) 
+}
 
 end Grassmannian
 end Topology
-
-
-
-#exit 
-
-
-class MySpecialEquiv (𝕜 E U : Type*) [DivisionRing 𝕜] [AddCommGroup E] [Module 𝕜 E] [AddCommGroup U] [Module 𝕜 U] (r : ℕ) :=
-  (myEquiv : E ≃ₗ[𝕜] (Fin r → 𝕜) × U)
-
-variable {ε : MySpecialEquiv 𝕜 E U r}
 
 end 
 
