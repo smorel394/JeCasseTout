@@ -495,11 +495,11 @@ def QGrassmannianEquivProjectiveSpace : QGrassmannian K V 1 ≃ ℙ K V :=
 }
 
 
-variable (r) {W : Type*} [AddCommGroup W] [Module K W]
+variable (r) {V' : Type*} [AddCommGroup V'] [Module K V']
 
 /-- An injective semilinear map of vector spaces induces a map on QGrassmannians. -/
--- Less general than the version for projective spaces because LinearIndependent.map' requires the two rings to be equal.
-def QGrassmannian.map (f : V →ₗ[K] W) (hf : Function.Injective f) : QGrassmannian K V r → QGrassmannian K W r :=
+-- Less general than the version for projective spaces because LinearIndependent.map' requires the tV'o rings to be equal.
+def QGrassmannian.map (f : V →ₗ[K] V') (hf : Function.Injective f) : QGrassmannian K V r → QGrassmannian K V' r :=
   Quotient.map' (fun v => ⟨f ∘ v.1, by simp only; rw [←LinearMap.ker_eq_bot] at hf; exact LinearIndependent.map' v.2 f hf⟩)
     (by rintro ⟨v, hv⟩ ⟨w, hw⟩ hvw
         change Submodule.span K _ = _ at hvw
@@ -509,12 +509,12 @@ def QGrassmannian.map (f : V →ₗ[K] W) (hf : Function.Injective f) : QGrassma
         rw [←LinearMap.map_span, ←LinearMap.map_span]
         rw [hvw])
 
-lemma QGrassmannian.map_mk (f : V →ₗ[K] W) (hf : Function.Injective f) (v : Fin r → V) (hv : LinearIndependent K v) :
+lemma QGrassmannian.map_mk (f : V →ₗ[K] V') (hf : Function.Injective f) (v : Fin r → V) (hv : LinearIndependent K v) :
     QGrassmannian.map r f hf (mk K v hv) = QGrassmannian.mk K (f ∘ v) 
     (by rw [←LinearMap.ker_eq_bot] at hf; exact LinearIndependent.map' hv f hf) := rfl
 
 /-- The map we have defined is injective. -/
-theorem QGrassmannian.map_injective (f : V →ₗ[K] W) (hf : Function.Injective f) : 
+theorem QGrassmannian.map_injective (f : V →ₗ[K] V') (hf : Function.Injective f) : 
 Function.Injective (QGrassmannian.map r f hf) := by 
   intro x y hxy 
   induction' x using QGrassmannian.ind with v hv  
@@ -534,11 +534,69 @@ lemma QGrassmannian.map_id : QGrassmannian.map r (LinearMap.id : V →ₗ[K] V) 
   rfl
 
 
-lemma QGrassmannian.map_comp {U : Type*} [AddCommGroup U] [Module K U] (f : V →ₗ[K] W) (hf : Function.Injective f)
-    (g : W →ₗ[K] U) (hg : Function.Injective g) :
+lemma QGrassmannian.map_comp {U : Type*} [AddCommGroup U] [Module K U] (f : V →ₗ[K] V') (hf : Function.Injective f)
+    (g : V' →ₗ[K] U) (hg : Function.Injective g) :
     QGrassmannian.map r (g.comp f) (hg.comp hf) = QGrassmannian.map r g hg ∘ QGrassmannian.map r f hf := by 
   ext ⟨v⟩
   rfl 
+
+
+/- And the versions with Grassmannians.-/
+
+
+def Grassmannian.map (f : V →ₗ[K] V') (hf : Function.Injective f) : Grassmannian K V r → Grassmannian K V' r := by
+  intro W
+  refine ⟨Submodule.map f W.1, ?_, ?_⟩
+  . letI := W.2.1 
+    exact inferInstance 
+  . set f' := f.domRestrict W.1 
+    have heq : Submodule.map f W = LinearMap.range f' := by
+      ext u
+      simp only [Submodule.mem_map, LinearMap.mem_range, LinearMap.domRestrict_apply, Subtype.exists, exists_prop]  
+    have hinj : Function.Injective f' := by
+      rw [←LinearMap.ker_eq_bot, Submodule.eq_bot_iff]
+      intro u 
+      simp only [LinearMap.mem_ker, LinearMap.domRestrict_apply]
+      rw [←LinearMap.ker_eq_bot] at hf 
+      intro hu 
+      change u.1 ∈ LinearMap.ker f at hu 
+      rw [hf] at hu 
+      simp only [Submodule.mem_bot, ZeroMemClass.coe_eq_zero] at hu  
+      exact hu
+    rw [heq, LinearMap.finrank_range_of_inj hinj, W.2.2]
+
+
+lemma Grassmannian.map_apply (f : V →ₗ[K] V') (hf : Function.Injective f) (W : Grassmannian K V r) :
+    (Grassmannian.map r f hf W).1 = Submodule.map f W := by
+    unfold Grassmannian.map 
+    simp only
+
+
+/-- The map we have defined is injective. -/
+theorem Grassmannian.map_injective (f : V →ₗ[K] V') (hf : Function.Injective f) : 
+Function.Injective (Grassmannian.map r f hf) := by 
+  intro W W' hWW'
+  rw [←SetCoe.ext_iff, Grassmannian.map_apply, Grassmannian.map_apply] at hWW'
+  apply_fun (fun p => SetLike.coe p) at hWW' 
+  rw [Submodule.map_coe, Submodule.map_coe] at hWW' 
+  rw [←SetCoe.ext_iff, ←SetLike.coe_set_eq] 
+  exact Function.Injective.image_injective hf hWW' 
+  
+
+@[simp]
+lemma Grassmannian.map_id : Grassmannian.map r (LinearMap.id : V →ₗ[K] V) (LinearEquiv.refl K V).injective = id := by
+  apply funext  
+  intro W
+  rw [id_eq, ←SetCoe.ext_iff, Grassmannian.map_apply, Submodule.map_id]
+
+
+lemma Grassmannian.map_comp {U : Type*} [AddCommGroup U] [Module K U] (f : V →ₗ[K] V') (hf : Function.Injective f)
+    (g : V' →ₗ[K] U) (hg : Function.Injective g) :
+    Grassmannian.map r (g.comp f) (hg.comp hf) = Grassmannian.map r g hg ∘ Grassmannian.map r f hf := by 
+  apply funext
+  intro W 
+  rw [Function.comp_apply, ←SetCoe.ext_iff, Grassmannian.map_apply, Grassmannian.map_apply, Grassmannian.map_apply,
+    Submodule.map_comp]
 
 
 /- Topologies. -/

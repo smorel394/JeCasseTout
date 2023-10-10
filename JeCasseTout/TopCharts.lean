@@ -8,7 +8,6 @@ import Mathlib.Analysis.NormedSpace.OperatorNorm
 
 noncomputable section 
 
-section Topology
 
 namespace Grassmannian
 
@@ -300,7 +299,6 @@ LocalHomeomorph (Grassmannian 𝕜 E r) ((Fin r → 𝕜) →L[𝕜] U) := {Char
 }
 
 end Grassmannian
-end Topology
 
 end 
 
